@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GBW | Weekly Work Hours Calculator</title>
+<style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: flex-start; /* Align to the left */
+            padding-left: 50px; /* Add padding to move content slightly to the right */
+        }
+        .container {
+            max-width: 2000px;
+            min-width: 800px
+            width: 100%;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            text-align: center; /* Center the title */
+            margin-left: 0; /* Align container to the left */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            table-layout: auto; /* Ensure the table fits within the container */
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            word-wrap: break-word; /* Ensure content wraps within the cell */
+        }
+        th {
+            background-color: #f2f2f2;
+            position: relative;
+        }
+        th:not(:nth-child(7)):not(:nth-child(14)), td:not(:nth-child(7)):not(:nth-child(14)) {
+            width: 60px; /* Set a fixed width for all columns except Vacation/Sick Time and RAQUEL'S Notes */
+        }
+        th:nth-child(7), td:nth-child(7) {
+            width: 150px; /* Set a wider width for Vacation/Sick Time */
+        }
+        th:nth-child(14), td:nth-child(14) {
+            width: 200px; /* Set a wider width for RAQUEL'S Notes */
+        }
+        .tooltip-icon {
+            cursor: pointer;
+            margin-left: 5px;
+            color: #888;
+            position: absolute;
+            top: 5px;
+            right: 5px;
+        }
+        .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            top: -5px;
+            right: 105%;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip-icon:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        button {
+            margin: 10px 5px;
+            padding: 10px 20px;
+            border: none;
+            background-color: #85878a;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        h1, h2 {
+            text-align: center;
+        }
+    
+/* GBW intranet presentation layer; payroll calculation logic is unchanged. */
+:root { color-scheme:light; }
+body { display:block; padding:28px 20px; background:#f3f6f4; color:#20352a; font-family:Arial,Helvetica,sans-serif; }
+.container { box-sizing:border-box; width:100%; min-width:0; max-width:1700px; margin:0 auto; padding:24px; border-top:7px solid #164734; }
+h1 { color:#164734; font-size:28px; margin:6px 0 12px; }
+.gb-note { margin:0 auto 15px; max-width:850px; font-size:13px; color:#52645b; line-height:1.5; }
+.gb-table-scroll { overflow-x:auto; }
+table { min-width:1320px; margin-top:14px; }
+th { background:#e5eee8; color:#164734; font-size:12px; }
+td { font-size:13px; }
+input { box-sizing:border-box; max-width:100%; padding:6px 4px; border:1px solid #bdcfc2; border-radius:4px; }
+input[type=time] { min-width:95px; }
+input[type=date] { min-width:125px; }
+input[type=number] { width:52px; }
+input[type=text] { min-width:145px; }
+button { background:#164734; font-weight:bold; }
+button:hover { background:#286b4c; }
+@media print { body {padding:0;background:white;} .container {box-shadow:none;border:0;padding:0;} button,.gb-note {display:none;} .gb-table-scroll {overflow:visible;} table {min-width:0;font-size:9px;} th,td {padding:3px;} input {border:0;font-size:9px;} }
+</style>
+</head>
+<body onload="loadResults()">
+<div class="container">
+<h1>Weekly Work Hours Calculator</h1><p class="gb-note">Enter Monday–Friday hours, then select Calculate Total Hours. Save Results stores this time card in this browser only. Use Print for a paper or PDF copy.</p>
+<div class="gb-table-scroll"><table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Day</th>
+<th>Start Time</th>
+<th>Lunch Start</th>
+<th>Lunch End</th>
+<th>End Time</th>
+<th>Vacation/Sick Time (HH:MM)</th>
+<th>Total Work Hrs</th> <!-- New Column -->
+<th>
+                        Total Paid Hrs
+                        <span class="tooltip-icon">
+ⓘ
+<span class="tooltip-text">Displays the time in decimal format</span>
+</span>
+</th>
+<th>Extra ST</th>
+<th>
+                        Extra ST (HH:MM)
+                        <span class="tooltip-icon">
+ⓘ
+<span class="tooltip-text">Displays the time in HH:MM format</span>
+</span>
+</th>
+<!--<th>
+                        Hours Short (HH:MM)
+                        <span class="tooltip-icon">
+                            <img src="info-icon.png" alt="Info" width="16" height="16">
+                            <span class="tooltip-text">Displays the time in HH:MM format</span>
+                        </span>
+                    </th>-->
+<th>Overtime</th>
+<th>Doubletime</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody id="days">
+<tr>
+<td><input id="date-monday" type="date"/></td>
+<td>Monday</td>
+<td><input id="start-time-monday" type="time"/></td>
+<td><input id="lunch-start-monday" type="time"/></td>
+<td><input id="lunch-end-monday" type="time"/></td>
+<td><input id="end-time-monday" type="time"/></td>
+<td>
+<input id="vacation-sick-hours-monday" max="23" min="0" placeholder="HH" type="number"/>
+<input id="vacation-sick-minutes-monday" max="59" min="0" placeholder="MM" type="number"/>
+</td>
+<td id="work-hours-monday"></td> <!-- New Field -->
+<td id="total-monday"></td>
+<td id="extra-st-monday"></td>
+<td id="short-monday"></td>
+<!--<td id="short-time-monday"></td>-->
+<td id="overtime-monday"></td>
+<td id="doubletime-monday"></td>
+<td><input id="notes-monday" type="text"/></td>
+</tr>
+<tr>
+<td><input id="date-tuesday" type="date"/></td>
+<td>tuesday</td>
+<td><input id="start-time-tuesday" type="time"/></td>
+<td><input id="lunch-start-tuesday" type="time"/></td>
+<td><input id="lunch-end-tuesday" type="time"/></td>
+<td><input id="end-time-tuesday" type="time"/></td>
+<td>
+<input id="vacation-sick-hours-tuesday" max="23" min="0" placeholder="HH" type="number"/>
+<input id="vacation-sick-minutes-tuesday" max="59" min="0" placeholder="MM" type="number"/>
+</td>
+<td id="work-hours-tuesday"></td> <!-- New Field -->
+<td id="total-tuesday"></td>
+<td id="extra-st-tuesday"></td>
+<td id="short-tuesday"></td>
+<!--<td id="short-time-tuesday"></td>-->
+<td id="overtime-tuesday"></td>
+<td id="doubletime-tuesday"></td>
+<td><input id="notes-tuesday" type="text"/></td>
+</tr>
+<tr>
+<td><input id="date-wednesday" type="date"/></td>
+<td>wednesday</td>
+<td><input id="start-time-wednesday" type="time"/></td>
+<td><input id="lunch-start-wednesday" type="time"/></td>
+<td><input id="lunch-end-wednesday" type="time"/></td>
+<td><input id="end-time-wednesday" type="time"/></td>
+<td>
+<input id="vacation-sick-hours-wednesday" max="23" min="0" placeholder="HH" type="number"/>
+<input id="vacation-sick-minutes-wednesday" max="59" min="0" placeholder="MM" type="number"/>
+</td>
+<td id="work-hours-wednesday"></td> <!-- New Field -->
+<td id="total-wednesday"></td>
+<td id="extra-st-wednesday"></td>
+<td id="short-wednesday"></td>
+<!--<td id="short-time-wednesday"></td>-->
+<td id="overtime-wednesday"></td>
+<td id="doubletime-wednesday"></td>
+<td><input id="notes-wednesday" type="text"/></td>
+</tr>
+<tr>
+<td><input id="date-thursday" type="date"/></td>
+<td>thursday</td>
+<td><input id="start-time-thursday" type="time"/></td>
+<td><input id="lunch-start-thursday" type="time"/></td>
+<td><input id="lunch-end-thursday" type="time"/></td>
+<td><input id="end-time-thursday" type="time"/></td>
+<td>
+<input id="vacation-sick-hours-thursday" max="23" min="0" placeholder="HH" type="number"/>
+<input id="vacation-sick-minutes-thursday" max="59" min="0" placeholder="MM" type="number"/>
+</td>
+<td id="work-hours-thursday"></td> <!-- New Field -->
+<td id="total-thursday"></td>
+<td id="extra-st-thursday"></td>
+<td id="short-thursday"></td>
+<!--<td id="short-time-thursday"></td>-->
+<td id="overtime-thursday"></td>
+<td id="doubletime-thursday"></td>
+<td><input id="notes-thursday" type="text"/></td>
+</tr>
+<tr>
+<td><input id="date-friday" type="date"/></td>
+<td>friday</td>
+<td><input id="start-time-friday" type="time"/></td>
+<td><input id="lunch-start-friday" type="time"/></td>
+<td><input id="lunch-end-friday" type="time"/></td>
+<td><input id="end-time-friday" type="time"/></td>
+<td>
+<input id="vacation-sick-hours-friday" max="23" min="0" placeholder="HH" type="number"/>
+<input id="vacation-sick-minutes-friday" max="59" min="0" placeholder="MM" type="number"/>
+</td>
+<td id="work-hours-friday"></td> <!-- New Field -->
+<td id="total-friday"></td>
+<td id="extra-st-friday"></td>
+<td id="short-friday"></td>
+<!--<td id="short-time-friday"></td>-->
+<td id="overtime-friday"></td>
+<td id="doubletime-friday"></td>
+<td><input id="notes-friday" type="text"/></td>
+</tr>
+<tr>
+<td colspan="7" style="text-align: right;"><strong>Total:</strong></td>
+<td id="work-hours-weekly"></td>
+<td id="total-weekly"></td>
+<td id="extra-st-weekly"></td>
+<td id="short-weekly"></td>
+<!--<td id="short-time-weekly"></td>-->
+<td id="overtime-weekly"></td>
+<td id="doubletime-weekly"></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<button onclick="calculateWeeklyHours()">Calculate Total Hours</button>
+<button onclick="saveResults()">Save Results</button>
+<button onclick="window.print()">Print</button>
+<button onclick="resetFields()">Reset</button>
+<h2 id="result"></h2>
+</div>
+</body>
+<script>
+    function calculateHours(startTime, endTime, lunchStart, lunchEnd) {
+        const start = new Date(`1970-01-01T${startTime}:00`);
+        const end = new Date(`1970-01-01T${endTime}:00`);
+        const lunchStartTime = lunchStart ? new Date(`1970-01-01T${lunchStart}:00`) : null;
+        const lunchEndTime = lunchEnd ? new Date(`1970-01-01T${lunchEnd}:00`) : null;
+
+        let workHours = (end - start) / (1000 * 60 * 60); // difference in hours
+        if (workHours < 0) {
+            workHours += 24; // handle cases where end time is past midnight
+        }
+
+        if (lunchStartTime && lunchEndTime) {
+            let lunchHours = (lunchEndTime - lunchStartTime) / (1000 * 60 * 60);
+            if (lunchHours < 0) {
+                lunchHours += 24; // handle cases where lunch end time is past midnight
+            }
+            workHours -= lunchHours;
+        }
+
+        return workHours;
+    }
+
+    function calculateWeeklyHours() {
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+    let totalWorkHours = 0;
+    let totalPaidHours = 0;
+    let totalExtraST = 0;
+    let totalShort = 0;
+    let totalOvertime = 0;
+    let totalDoubletime = 0;
+
+    for (const day of days) {
+        // Get input values
+        console.log(`Processing ${day}`);
+        const startTime = document.getElementById(`start-time-${day}`).value;
+        const endTime = document.getElementById(`end-time-${day}`).value;
+        const lunchStart = document.getElementById(`lunch-start-${day}`).value;
+        const lunchEnd = document.getElementById(`lunch-end-${day}`).value;
+        const vacationSickHours = parseInt(document.getElementById(`vacation-sick-hours-${day}`).value) || 0;
+        const vacationSickMinutes = parseInt(document.getElementById(`vacation-sick-minutes-${day}`).value) || 0;
+        const vacationSickTime = vacationSickHours + (vacationSickMinutes / 60);
+
+        console.log(`startTime: ${startTime}, endTime: ${endTime}, lunchStart: ${lunchStart}, lunchEnd: ${lunchEnd}`);
+        console.log(`vacationSickHours: ${vacationSickHours}, vacationSickMinutes: ${vacationSickMinutes}, vacationSickTime: ${vacationSickTime}`);
+
+        let workHours = 0;
+        let totalPaid = 0;
+
+        // Calculate work hours
+        if (startTime && endTime) {
+            workHours = calculateHours(startTime, endTime, lunchStart, lunchEnd);
+            totalPaid = workHours + vacationSickTime;
+        } else if (vacationSickTime) {
+            totalPaid = vacationSickTime;
+        }
+
+        // Skip calculation if no data is entered
+        if (!startTime && !endTime && !vacationSickTime) {
+            console.log(`Skipping ${day} due to no data`);
+            if (document.getElementById(`short-${day}`)) document.getElementById(`short-${day}`).innerText = '0:00';
+            if (document.getElementById(`extra-st-${day}`)) document.getElementById(`extra-st-${day}`).innerText = '';
+            if (document.getElementById(`overtime-${day}`)) document.getElementById(`overtime-${day}`).innerText = '';
+            if (document.getElementById(`doubletime-${day}`)) document.getElementById(`doubletime-${day}`).innerText = '';
+            continue;
+        }
+
+        totalWorkHours += workHours;
+        totalPaidHours += totalPaid;
+
+        if (document.getElementById(`work-hours-${day}`)) document.getElementById(`work-hours-${day}`).innerText = workHours.toFixed(2);
+        if (document.getElementById(`total-${day}`)) document.getElementById(`total-${day}`).innerText = totalPaid.toFixed(2);
+
+        // Calculate Extra ST
+        let extraST = totalPaid - 7.5;
+if (extraST > 0.50) {
+    extraST = 0.50;
+}
+totalExtraST += extraST;
+if (document.getElementById(`extra-st-${day}`)) document.getElementById(`extra-st-${day}`).innerText = extraST.toFixed(2);
+        //Old ExtraST Calc
+        //let extraST = totalPaid - 7.5;
+        //totalExtraST += extraST;
+        //if (document.getElementById(`extra-st-${day}`)) document.getElementById(`extra-st-${day}`).innerText = extraST.toFixed(2);
+
+        // Convert Extra ST to HH:MM format for Hours Short
+        const shortHours = Math.floor(Math.abs(extraST));
+        const shortMinutes = Math.round((Math.abs(extraST) - shortHours) * 60);
+        const shortTimeFormat = `${extraST < 0 ? '-' : ''}${shortHours}:${shortMinutes.toString().padStart(2, '0')}`;
+        if (document.getElementById(`short-${day}`)) document.getElementById(`short-${day}`).innerText = shortTimeFormat;
+
+        // Debugging: Log values
+        console.log(`Day: ${day}, Work Hours: ${workHours}, Total Paid Hours: ${totalPaid}, Extra ST: ${extraST}, Short Time Format: ${shortTimeFormat}`);
+
+        // Calculate Overtime
+        let overtime = 0;
+        if (workHours > 8 && vacationSickTime === 0) {
+            overtime = Math.min(workHours - 8, 4);
+        }
+        totalOvertime += overtime;
+        if (document.getElementById(`overtime-${day}`)) document.getElementById(`overtime-${day}`).innerText = overtime.toFixed(2);
+
+        // Calculate Doubletime
+        const doubletime = workHours > 12 && vacationSickTime === 0 ? workHours - 12 : 0;
+        totalDoubletime += doubletime;
+        if (document.getElementById(`doubletime-${day}`)) document.getElementById(`doubletime-${day}`).innerText = doubletime > 0 ? doubletime.toFixed(2) : '';
+    }
+
+    // Update weekly totals
+    if (document.getElementById('work-hours-weekly')) document.getElementById('work-hours-weekly').innerText = totalWorkHours.toFixed(2);
+    if (document.getElementById('total-weekly')) document.getElementById('total-weekly').innerText = totalPaidHours.toFixed(2);
+    if (document.getElementById('extra-st-weekly')) document.getElementById('extra-st-weekly').innerText = totalExtraST.toFixed(2);
+    //if (document.getElementById('short-weekly')) document.getElementById('short-weekly').innerText = totalShort.toFixed(2);
+
+    // Convert totalExtraST to hh:mm format
+    const extraSTHours = Math.floor(Math.abs(totalExtraST));
+        const extraSTMinutes = Math.round((Math.abs(totalExtraST) - extraSTHours) * 60);
+        const newshortTimeFormat = `${totalExtraST < 0 ? '-' : ''}${extraSTHours}:${extraSTMinutes.toString().padStart(2, '0')}`;
+   // const extraSTHours = Math.floor(totalExtraST);
+   // const extraSTMinutes = Math.round((totalExtraST - extraSTHours) * 60);
+
+    // Debugging: Log values before formatting
+    console.log(`extraSTHours: ${extraSTHours}, extraSTMinutes: ${extraSTMinutes}`);
+    
+
+    // Ensure values are valid numbers
+    if (!isNaN(extraSTHours) && !isNaN(extraSTMinutes)) {
+        const extraSTTimeFormat = `${extraSTHours}:${extraSTMinutes.toString().padStart(2, '0')}`;
+        console.log(`extraSTTimeFormat: ${extraSTTimeFormat}`);
+        if (document.getElementById('short-weekly')) document.getElementById('short-weekly').innerText = newshortTimeFormat;
+    } else {
+        console.error('Invalid values for extraSTHours or extraSTMinutes');
+    }
+
+    if (document.getElementById('overtime-weekly')) document.getElementById('overtime-weekly').innerText = totalOvertime.toFixed(2);
+    if (document.getElementById('doubletime-weekly')) document.getElementById('doubletime-weekly').innerText = totalDoubletime.toFixed(2);
+
+    // Debugging: Log weekly totals
+    console.log(`Total Work Hours: ${totalWorkHours}, NewTime: ${newshortTimeFormat}, Total Paid Hours: ${totalPaidHours}, Total Extra ST: ${totalExtraST}, Total Overtime: ${totalOvertime}, Total Doubletime: ${totalDoubletime}`);
+}
+
+function saveResults() {
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+    let results = {};
+
+    for (const day of days) {
+        results[day] = {
+            date: document.getElementById(`date-${day}`).value,
+            startTime: document.getElementById(`start-time-${day}`).value,
+            endTime: document.getElementById(`end-time-${day}`).value,
+            lunchStart: document.getElementById(`lunch-start-${day}`).value,
+            lunchEnd: document.getElementById(`lunch-end-${day}`).value,
+            vacationSickHours: document.getElementById(`vacation-sick-hours-${day}`).value,
+            vacationSickMinutes: document.getElementById(`vacation-sick-minutes-${day}`).value,
+            dailyTotal: document.getElementById(`total-${day}`).innerText,
+            hoursShort: document.getElementById(`short-${day}`).innerText,
+            extraST: document.getElementById(`extra-st-${day}`).innerText,
+            overtime: document.getElementById(`overtime-${day}`).innerText,
+            doubletime: document.getElementById(`doubletime-${day}`).innerText,
+            notes: document.getElementById(`notes-${day}`).value
+        };
+    }
+
+    localStorage.setItem('workHours', JSON.stringify(results));
+    alert('Results saved successfully!');
+}
+
+function loadResults() {
+    const savedResults = localStorage.getItem('workHours');
+    if (savedResults) {
+        const results = JSON.parse(savedResults);
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+
+        for (const day of days) {
+            if (results[day]) {
+                document.getElementById(`date-${day}`).value = results[day].date;
+                document.getElementById(`start-time-${day}`).value = results[day].startTime;
+                document.getElementById(`end-time-${day}`).value = results[day].endTime;
+                document.getElementById(`lunch-start-${day}`).value = results[day].lunchStart;
+                document.getElementById(`lunch-end-${day}`).value = results[day].lunchEnd;
+                document.getElementById(`vacation-sick-hours-${day}`).value = results[day].vacationSickHours;
+                document.getElementById(`vacation-sick-minutes-${day}`).value = results[day].vacationSickMinutes;
+                document.getElementById(`total-${day}`).innerText = results[day].dailyTotal;
+                document.getElementById(`short-${day}`).innerText = results[day].hoursShort;
+                document.getElementById(`extra-st-${day}`).innerText = results[day].extraST;
+                document.getElementById(`overtime-${day}`).innerText = results[day].overtime;
+                document.getElementById(`doubletime-${day}`).innerText = results[day].doubletime;
+                document.getElementById(`notes-${day}`).value = results[day].notes;
+            }
+        }
+    }
+}
+
+function resetFields() {
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+
+    // Clear input fields
+    days.forEach(day => {
+        document.getElementById(`date-${day}`).value = '';
+        document.getElementById(`start-time-${day}`).value = '';
+        document.getElementById(`lunch-start-${day}`).value = '';
+        document.getElementById(`lunch-end-${day}`).value = '';
+        document.getElementById(`end-time-${day}`).value = '';
+        document.getElementById(`vacation-sick-hours-${day}`).value = '';
+        document.getElementById(`vacation-sick-minutes-${day}`).value = '';
+        document.getElementById(`notes-${day}`).value = '';
+    });
+
+    // Clear calculated fields
+    days.forEach(day => {
+        document.getElementById(`work-hours-${day}`).innerText = '';
+        document.getElementById(`total-${day}`).innerText = '';
+        document.getElementById(`extra-st-${day}`).innerText = '';
+        document.getElementById(`short-${day}`).innerText = '';
+        // Removed reference to a non-existent legacy short-time field.
+        document.getElementById(`overtime-${day}`).innerText = '';
+        document.getElementById(`doubletime-${day}`).innerText = '';
+    });
+
+    // Clear weekly totals
+    document.getElementById('result').innerText = '';
+    document.getElementById('total-weekly').innerText = '';
+    document.getElementById('work-hours-weekly').innerText = '';
+    document.getElementById('short-weekly').innerText = '';
+    // Removed reference to a non-existent legacy weekly short-time field.
+    document.getElementById('extra-st-weekly').innerText = '';
+    document.getElementById('overtime-weekly').innerText = '';
+    document.getElementById('doubletime-weekly').innerText = '';
+    localStorage.removeItem('workHours');
+}
+</script>
+
+</html>
